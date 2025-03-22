@@ -8,14 +8,37 @@ jobs:
   CI:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Obter código" # comentário é assim.  Aqui simula uma tarefa.
-      - run: echo "executar o Docker build"
-      - run: echo "Enviar a imagem Docker para Docker Hub"
+      - name: Obter código
+        uses: actions/checkout@v4.2.2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with: 
+           username: ${{ secret.DOCKERHUB_USERNAME }}
+           password: ${{ secret.DOCKERHUB_TOKEN }}
+      - name: Construcao e Envio da Imagem Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src
+          push: true
+          file: ./src/DockerFile
+          tags: | 
+            gilbertodfl/fake-shop:v${{ github.run_number }}
+            gilbertodfl/fake-shop:latest
   CD:
     needs: [CI]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Obter código"
-      - run: echo "Configura kubeconfig"
-      - run: echo "Executar o apply"
+      - name: Obter código
+        uses: actions/checkout@v4.2.2
+
+      - uses: azure/k8s-set-context@v4
+        with:
+           method: kubeconfig
+           kubeconfig: ${{ secrets.K8S_KUBECONFIG }}
+           
+      - uses: Azure/k8s-deploy@v5
+        with:
+           manifests: |
+              k8s/deployment.yaml
+           images: gilbertodfl/fake-shop:v${{ github.run_number }}
       
